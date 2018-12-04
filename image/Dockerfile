@@ -12,31 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM google/debian:jessie
+FROM registry.access.redhat.com/redhat-openjdk-18/openjdk18-openshift:latest
 
-COPY cassandra.list /etc/apt/sources.list.d/cassandra.list
-COPY run.sh /run.sh
+USER root
 
-RUN gpg --keyserver pgp.mit.edu --recv-keys F758CE318D77295D && \
-  gpg --export --armor F758CE318D77295D | apt-key add - && \
-  gpg --keyserver pgp.mit.edu --recv-keys 2B5C1B00 && \
-  gpg --export --armor 2B5C1B00 | apt-key add - && \
-  gpg --keyserver pgp.mit.edu --recv-keys 0353B12C && \
-  gpg --export --armor 0353B12C | apt-key add - && \
-  apt-get update && \
-  apt-get -qq -y install procps cassandra openjdk-8-jre-headless rsync
+RUN groupadd  cassandra 
+RUN useradd  cassandra -g cassandra
+RUN echo "cassandra ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && chmod -w /etc/sudoers
+COPY run.sh /run.sh 
+RUN chmod a+rx /run.sh  && chown cassandra /run.sh && chown cassandra /opt
 
-RUN chmod a+rx /run.sh && \
-  mkdir -p /etc/cassandra && mkdir -p /cassandra_data && \
+ENV CASSANDRA_VERSION="3.11.2" \
+    CASSANDRA_HOME="/opt/apache-cassandra" \
+    HOME="/home/cassandra" \
+    PATH="/opt/apache-cassandra/bin:$PATH"
+
+RUN cd /opt &&\
+    curl -LO curl -LO http://archive.apache.org/dist/cassandra/$CASSANDRA_VERSION/apache-cassandra-3.11.2-bin.tar.gz && ls -l &&\
+    tar xvzf apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
+    rm apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
+    ln -s apache-cassandra-$CASSANDRA_VERSION apache-cassandra
+
+RUN mkdir -p /etc/cassandra && mkdir -p /cassandra_data && \
   chown -R cassandra.cassandra /etc/cassandra /cassandra_data && \
   chmod o+w -R /etc/cassandra /cassandra_data && \
-  mkdir -p /var/lib/cassandra && chmod o+rwx /var/lib/cassandra && \ 
+  mkdir -p /var/lib/cassandra && chmod o+rwx /var/lib/cassandra && \
   rm -rf /var/lib/apt/lists/* && \
   rm -rf /usr/share/doc/ && \
   rm -rf /usr/share/doc-base/ && \
   rm -rf /usr/share/man/ && \
   rm -rf /tmp/* 
 
+USER cassandra
 COPY cassandra.yaml /etc/cassandra/cassandra.yaml
 COPY logback.xml /etc/cassandra/logback.xml
 COPY kubernetes-cassandra.jar /kubernetes-cassandra.jar
