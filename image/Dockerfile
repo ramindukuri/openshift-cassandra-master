@@ -16,9 +16,9 @@ FROM registry.access.redhat.com/redhat-openjdk-18/openjdk18-openshift:latest
 
 USER root
 
-RUN groupadd  cassandra 
-RUN useradd  cassandra -g cassandra
-RUN echo "cassandra ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && chmod -w /etc/sudoers
+RUN groupadd  cassandragrp
+RUN useradd  cassandrauser -g cassandragrp
+RUN echo "cassandrauser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && chmod -w /etc/sudoers
 COPY run.sh /run.sh 
 RUN chmod a+rx /run.sh  && chown cassandra /run.sh && chown cassandra /opt
 
@@ -27,8 +27,9 @@ ENV CASSANDRA_VERSION="3.11.2" \
     HOME="/home/cassandra" \
     PATH="/opt/apache-cassandra/bin:$PATH"
 
+COPY apache-cassandra-3.11.2-bin.tar.gz /opt/apache-cassandra-3.11.2-bin.tar.gz
 RUN cd /opt &&\
-    curl -LO curl -LO http://archive.apache.org/dist/cassandra/$CASSANDRA_VERSION/apache-cassandra-3.11.2-bin.tar.gz && ls -l &&\
+#    curl -LO http://archive.apache.org/dist/cassandra/$CASSANDRA_VERSION/apache-cassandra-3.11.2-bin.tar.gz && \
     tar xvzf apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
     rm apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
     ln -s apache-cassandra-$CASSANDRA_VERSION apache-cassandra
@@ -42,8 +43,8 @@ RUN mkdir -p /etc/cassandra && mkdir -p /cassandra_data && \
   rm -rf /usr/share/doc-base/ && \
   rm -rf /usr/share/man/ && \
   rm -rf /tmp/* 
-
-USER cassandra
+RUN chown cassandrauser /opt
+USER cassandrauser
 COPY cassandra.yaml /etc/cassandra/cassandra.yaml
 COPY logback.xml /etc/cassandra/logback.xml
 COPY kubernetes-cassandra.jar /kubernetes-cassandra.jar

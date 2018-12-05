@@ -1,1 +1,2 @@
 openshift.local.clusterup/
+image/apache-cassandra-3.11.2-bin.tar.gz
