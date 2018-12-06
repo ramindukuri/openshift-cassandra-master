@@ -1,50 +1,36 @@
-# Copyright 2016 The Kubernetes Authors All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 FROM registry.access.redhat.com/redhat-openjdk-18/openjdk18-openshift:latest
 
-USER root
-
-RUN groupadd  cassandragrp
-RUN useradd  cassandrauser -g cassandragrp
-RUN echo "cassandrauser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && chmod -w /etc/sudoers
-COPY run.sh /run.sh 
-RUN chmod a+rx /run.sh  && chown cassandra /run.sh && chown cassandra /opt
-
 ENV CASSANDRA_VERSION="3.11.2" \
-    CASSANDRA_HOME="/opt/apache-cassandra" \
-    HOME="/home/cassandra" \
-    PATH="/opt/apache-cassandra/bin:$PATH"
+    CASSANDRA_HOME="/home/jboss/cassandra/apache-cassandra-3.11.2" \
+    HOME="/home/jboss" \
+    PATH="/home/jboss/cassandra/apache-cassandra/bin:$PATH"
 
-COPY apache-cassandra-3.11.2-bin.tar.gz /opt/apache-cassandra-3.11.2-bin.tar.gz
-RUN cd /opt &&\
-#    curl -LO http://archive.apache.org/dist/cassandra/$CASSANDRA_VERSION/apache-cassandra-3.11.2-bin.tar.gz && \
+RUN mkdir -p /home/jboss/cassandra /home/jboss/cassandra/apache-cassandra-3.11.2  /home/jboss/cassandra/apache-cassandra-3.11.2/logs && cd /home/jboss/cassandra
+
+COPY apache-cassandra-3.11.2-bin.tar.gz /home/jboss/cassandra/apache-cassandra-3.11.2-bin.tar.gz
+
+RUN cd /home/jboss/cassandra &&\
+#    curl -LO http://archive.apache.org/dist/cassandra/3.11.2/apache-cassandra-3.11.2-bin.tar.gz && \
     tar xvzf apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
     rm apache-cassandra-$CASSANDRA_VERSION-bin.tar.gz && \
     ln -s apache-cassandra-$CASSANDRA_VERSION apache-cassandra
 
-RUN mkdir -p /etc/cassandra && mkdir -p /cassandra_data && \
-  chown -R cassandra.cassandra /etc/cassandra /cassandra_data && \
-  chmod o+w -R /etc/cassandra /cassandra_data && \
-  mkdir -p /var/lib/cassandra && chmod o+rwx /var/lib/cassandra && \
-  rm -rf /var/lib/apt/lists/* && \
-  rm -rf /usr/share/doc/ && \
-  rm -rf /usr/share/doc-base/ && \
-  rm -rf /usr/share/man/ && \
-  rm -rf /tmp/* 
-RUN chown cassandrauser /opt
-USER cassandrauser
+USER root
+
+COPY run.sh /run.sh 
+RUN chown jboss /run.sh
+RUN chmod o+rwx /run.sh
+RUN mkdir -p /cassandra_data/
+RUN mkdir -p /cassandra_data/data
+RUN mkdir -p /cassandra_data/commitlog
+RUN mkdir -p /cassandra_data/saved_caches
+RUN chown -R jboss /cassandra_data
+RUN mkdir -p /etc/cassandra &&  chown -R jboss /etc/cassandra && chmod o+w -R /etc/cassandra 
+RUN mkdir -p /var/lib/cassandra && chmod o+rwx /var/lib/cassandra && chown -R jboss /var/lib/cassandra
+RUN chown -R jboss /home/jboss/cassandra/apache-cassandra-3.11.2
+
+USER jboss
+
 COPY cassandra.yaml /etc/cassandra/cassandra.yaml
 COPY logback.xml /etc/cassandra/logback.xml
 COPY kubernetes-cassandra.jar /kubernetes-cassandra.jar
